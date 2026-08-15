@@ -168,16 +168,7 @@ Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser.
 docker-compose up --build
 ```
 
----
 
-## 🛡️ Security & DevSecOps
-
-- **Zero Secret Commits:** Verified by `scripts/security_scan.py` with 0 findings.
-- **Environment Isolation:** Secrets loaded exclusively via `.env`.
-- **Strict Input Validation:** Rejects NaN, Infinity, incorrect history length ($\neq 168$), and out-of-bound coordinates.
-- **Network Resilience:** External API calls wrapped with 10s timeouts and structured HTTP 503 fallback handlers.
-
----
 
 ## 📄 License
 
