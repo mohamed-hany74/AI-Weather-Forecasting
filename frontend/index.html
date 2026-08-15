@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WeatherCast AI — 24-Hour Predictive Weather Intelligence</title>
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="dark-theme">
+
+  <!-- Application Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">
+          <h1>WeatherCast <span class="accent-text">AI</span></h1>
+          <p class="subtitle">24-Hour Predictive Weather Intelligence • Production XGBoost</p>
+        </div>
+      </div>
+      <div class="header-status-group">
+        <span id="apiStatusBadge" class="status-pill status-pill-online">
+          <span class="status-dot"></span> API Online
+        </span>
+        <span id="modelStatusBadge" class="status-pill status-pill-neutral">
+          🧠 XGBoost (15 Features)
+        </span>
+        <button id="themeToggleBtn" class="btn-icon" title="Toggle Light/Dark Theme">🌓</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Grid Layout -->
+  <main class="main-layout">
+    
+    <!-- Top Row: Config + Main Forecast -->
+    <div class="dashboard-top-grid">
+      
+      <!-- 1. Location & Causal Input Panel -->
+      <section class="glass-card config-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>Location & Causal Context</h2>
+            <span class="badge-tag">15 Causal Features</span>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label class="section-label">Target Region (Egypt)</label>
+          <div class="city-chips-grid" id="cityChips">
+            <button type="button" class="chip active" data-lat="30.0444" data-lon="31.2357" data-name="Cairo">Cairo (القاهرة)</button>
+            <button type="button" class="chip" data-lat="31.2001" data-lon="29.9187" data-name="Alexandria">Alexandria (الإسكندرية)</button>
+            <button type="button" class="chip" data-lat="30.0131" data-lon="31.2089" data-name="Giza">Giza (الجيزة)</button>
+            <button type="button" class="chip" data-lat="25.6872" data-lon="32.6396" data-name="Luxor">Luxor (الأقصر)</button>
+            <button type="button" class="chip" data-lat="24.0889" data-lon="32.8998" data-name="Aswan">Aswan (أسوان)</button>
+          </div>
+        </div>
+
+        <div class="form-row-2col">
+          <div class="form-field">
+            <label for="latInput">Latitude (°N)</label>
+            <input type="number" id="latInput" value="30.0444" step="0.0001" min="-90" max="90">
+          </div>
+          <div class="form-field">
+            <label for="lonInput">Longitude (°E)</label>
+            <input type="number" id="lonInput" value="31.2357" step="0.0001" min="-180" max="180">
+          </div>
+        </div>
+
+        <div class="form-field">
+          <div class="field-header-row">
+            <label for="timeInput">Prediction Reference Timestamp (t)</label>
+            <button type="button" id="setNowBtn" class="btn-micro" title="Reset to current local/UTC time">⏱️ Now</button>
+          </div>
+          <input type="datetime-local" id="timeInput">
+          <div class="timestamp-preview" id="timestampPreview">
+            🕒 Active UTC: <span id="activeUtcDisplay">Loading...</span>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label class="section-label">168-Hour Historical Series [t-168h ... t-1h]</label>
+          <div class="action-btn-row">
+            <button type="button" id="autoFetchBtn" class="btn btn-secondary">
+              ⚡ Auto-Fetch Open-Meteo
+            </button>
+            <button type="button" id="sampleDataBtn" class="btn btn-ghost">
+              🎲 Load Cairo Sample Series
+            </button>
+          </div>
+          <div class="causal-status-box" id="historyStatus">
+            <span class="status-indicator">●</span>
+            <span id="historyStatusText">Ready: Click above to load 168h causal context</span>
+          </div>
+        </div>
+
+        <button type="button" id="generateForecastBtn" class="btn btn-primary btn-cta">
+          <span class="btn-text">Generate 24-Hour Forecast</span>
+          <span class="btn-spinner" style="display: none;">⏳ Running Inference...</span>
+        </button>
+      </section>
+
+      <!-- 2. Main Forecast Intelligence Panel -->
+      <section class="glass-card forecast-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>24-Hour Forecast Intelligence</h2>
+            <span class="badge-tag badge-accent">t + 24h Horizon</span>
+          </div>
+        </div>
+
+        <!-- Big Hero Temp -->
+        <div class="forecast-hero-box">
+          <div class="hero-temp-wrapper">
+            <span id="forecastValue" class="hero-temperature-digits">--.-</span>
+            <span class="hero-degree-symbol">°C</span>
+          </div>
+          <p id="targetForecastTimestamp" class="hero-timestamp-label">
+            Target Horizon: Click "Generate 24-Hour Forecast" to infer
+          </p>
+        </div>
+
+        <!-- Comparative Deltas -->
+        <div class="deltas-grid">
+          <div class="delta-card">
+            <span class="delta-title">vs. Latest Hour (t-1h)</span>
+            <span id="deltaLastHour" class="delta-number">--</span>
+          </div>
+          <div class="delta-card">
+            <span class="delta-title">vs. Yesterday (t-24h)</span>
+            <span id="deltaYesterday" class="delta-number">--</span>
+          </div>
+          <div class="delta-card">
+            <span class="delta-title">7-Day Trajectory Mean</span>
+            <span id="statMean7d" class="delta-number">--</span>
+          </div>
+        </div>
+
+        <!-- Exogenous Context Strip -->
+        <div class="exogenous-grid">
+          <div class="exo-tile">
+            <span class="exo-label">Apparent Temp</span>
+            <span id="exoApparent" class="exo-value">--.- °C</span>
+            <span class="exo-caption">Open-Meteo at t</span>
+          </div>
+          <div class="exo-tile">
+            <span class="exo-label">Surface Pressure</span>
+            <span id="exoPressure" class="exo-value">----.- hPa</span>
+            <span class="exo-caption">MSL Barometer</span>
+          </div>
+          <div class="exo-tile">
+            <span class="exo-label">Relative Humidity</span>
+            <span id="exoHumidity" class="exo-value">-- %</span>
+            <span class="exo-caption">Air Saturation</span>
+          </div>
+        </div>
+
+        <!-- Model Specs Banner -->
+        <div class="model-meta-bar" id="modelMetaBar">
+          <span>🧠 <strong>XGBRegressor (300 trees)</strong></span>
+          <span>📐 <strong>15 Causal Features</strong></span>
+          <span>🎯 <strong>MAE: 1.37°C | R²: 0.94</strong></span>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Middle: Time Series Trajectory & Forecast Chart -->
+    <section class="glass-card chart-card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h2>168-Hour Temperature Trajectory & 24h Forecast Marker</h2>
+        </div>
+        <div class="chart-controls">
+          <button type="button" class="range-btn active" data-range="168">All 168h (7 Days)</button>
+          <button type="button" class="range-btn" data-range="72">Past 72h</button>
+          <button type="button" class="range-btn" data-range="24">Past 24h</button>
+        </div>
+      </div>
+      <div class="chart-canvas-wrapper">
+        <canvas id="forecastChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Bottom: Feature Intelligence Accordion & System Health -->
+    <div class="dashboard-bottom-grid">
+      
+      <!-- Feature Vector Breakdown -->
+      <section class="glass-card feature-intelligence-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>Feature Vector Diagnostics</h2>
+            <span class="badge-tag">Exact 15-Feature Order</span>
+          </div>
+        </div>
+        <div class="feature-table-wrapper">
+          <table class="feature-diagnostics-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Feature Name</th>
+                <th>Calculated Value</th>
+                <th>Semantic Type</th>
+              </tr>
+            </thead>
+            <tbody id="featureTableBody">
+              <tr>
+                <td colspan="4" class="text-center text-muted">Generate forecast to inspect feature vector values.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- System Health Diagnostics -->
+      <section class="glass-card health-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>System Health & Safety</h2>
+          </div>
+        </div>
+        <div class="health-indicators-list">
+          <div class="health-item">
+            <span class="health-name">Backend API Status</span>
+            <span id="healthApiStatus" class="health-badge health-badge-pass">PASS</span>
+          </div>
+          <div class="health-item">
+            <span class="health-name">Model Serialization & Memory</span>
+            <span id="healthModelStatus" class="health-badge health-badge-pass">PASS</span>
+          </div>
+          <div class="health-item">
+            <span class="health-name">Open-Meteo Integration</span>
+            <span id="healthWeatherServiceStatus" class="health-badge health-badge-pass">PASS</span>
+          </div>
+          <div class="health-item">
+            <span class="health-name">Temporal Purge / Zero Future Data</span>
+            <span class="health-badge health-badge-pass">ENFORCED</span>
+          </div>
+          <div class="health-item">
+            <span class="health-name">Timezone Normalization</span>
+            <span class="health-badge health-badge-pass">UTC ISO-8601</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <p>WeatherCast AI • Production Machine Learning Forecasting Platform</p>
+      <p class="footer-sub">Strictly Causal 15-Feature XGBoost Pipeline • Cairo, Egypt</p>
+    </div>
+  </footer>
+
+  <!-- Toast Notification System -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Application JavaScript Modules -->
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/validation.js"></script>
+  <script src="/static/js/charts.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+    "target": "temperature_2m",
+    "forecast_horizon": 24,
+    "feature_count": 15,
+    "features": [
+        "apparent_temperature",
+        "pressure_msl",
+        "relative_humidity_2m",
+        "hour_cos",
+        "month_cos",
+        "dayofyear_sin",
+        "dayofyear_cos",
+        "temperature_2m_lag_1",
+        "temperature_2m_lag_24",
+        "temperature_2m_lag_72",
+        "temperature_2m_lag_168",
+        "temperature_2m_rolling_max_6",
+        "temperature_2m_rolling_max_24",
+        "temperature_2m_rolling_mean_24",
+        "temperature_2m_rolling_std_24"
+    ],
+    "note_exogenous": "apparent_temperature, pressure_msl, relative_humidity_2m are observed values at prediction time t supplied by real-time Weather API (e.g. Open-Meteo).",
+    "django_rolling_std_note": "Django MUST use sample standard deviation (ddof=1) to prevent training/serving skew: np.std(temp_history[-24:], ddof=1) or pd.Series(temp_history[-24:]).std()"
+}

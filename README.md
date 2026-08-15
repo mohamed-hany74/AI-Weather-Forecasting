@@ -1,132 +1,165 @@
-# 🌤️ Cairo Weather Analytics & Time-Series EDA
+# WeatherCast AI ⚡
 
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![Pandas](https://img.shields.io/badge/Pandas-2.0+-150458?style=for-the-badge&logo=pandas&logoColor=white)](https://pandas.pydata.org/)
-[![Plotly](https://img.shields.io/badge/Plotly-5.15+-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)](https://plotly.com/)
-[![Statsmodels](https://img.shields.io/badge/Statsmodels-Time--Series-4B6584?style=for-the-badge)](https://www.statsmodels.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+**Enterprise 24-Hour Predictive Weather Intelligence Platform for Cairo, Egypt**  
+*Production Machine Learning Forecasting Pipeline with XGBoost, Django REST API, and Vanilla JavaScript SaaS Dashboard.*
 
-A comprehensive, production-grade **Time-Series Exploratory Data Analysis (EDA)** and **Interactive Analytics Dashboard** evaluating 365 daily weather observations for **Cairo, Egypt (2025)** retrieved from the **Open-Meteo ERA5 Historical Archive API**.
-
----
-
-## 📌 Executive Summary
-
-This repository delivers a rigorous end-to-end time-series analytical workflow designed to evaluate raw climate variables, extract underlying trend and seasonal patterns, conduct formal stationarity testing, detect anomaly spikes, and deliver interactive visualization dashboards.
-
-### 🌟 Key Findings
-- **Sinusoidal Thermal Regimes**: Annual mean temperature stands at **24.2°C**, spanning from a winter low of **6.9°C** (January) to a summer peak of **44.4°C** (July/August heat waves).
-- **Strong Inverse Thermo-Hydric Relationship**: Mean daily temperature and relative humidity exhibit a strong negative correlation (**r = -0.78**), indicating hyper-arid conditions during summer peaks.
-- **Hyper-Arid Precipitation Profile**: Annual total rainfall reached only **14.2 mm** across 365 days, with **~350 completely dry days (0 mm)**, validating Cairo's *BWh* hyper-arid desert climate classification.
-- **Non-Stationarity Validated**: Augmented Dickey-Fuller (ADF) test yielded **$p = 0.7874 > 0.05$**, confirming the raw daily temperature series is non-stationary and requires seasonal differencing ($D=1, \text{period}=365$) or STL detrending prior to time-series forecasting (SARIMA/Prophet).
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Django 5/6](https://img.shields.io/badge/Django-REST-green.svg)](https://www.djangoproject.com/)
+[![XGBoost](https://img.shields.io/badge/Model-XGBoost%20Regressor-orange.svg)](https://xgboost.readthedocs.io/)
+[![Security: Clean](https://img.shields.io/badge/Security-0%20Secrets%20Found-brightgreen.svg)]()
 
 ---
 
-## 📊 Interactive Dashboard Preview
+## 🌟 Executive Overview
 
-The repository includes a standalone, self-contained **Interactive Web Dashboard** (`dashboard.html`) featuring **46 Plotly visualizations** structured into 6 logical analytical tabs:
+**WeatherCast AI** is a production-grade machine learning platform designed to forecast ambient 2-meter air temperature (`temperature_2m`) in Cairo, Egypt exactly 24 hours into the future ($t + 24\text{h}$). 
 
-1. **📊 Distributions**: Histograms and Kernel Density Estimation (KDE) for all 9 meteorological features.
-2. **📈 Temporal Trends**: Daily max/min temperature, precipitation bar charts, and 7-day rolling mean smoothers.
-3. **🔬 Decomposition & ACF**: STL decomposition (Trend, 30-day Seasonality, Residuals) and Autocorrelation Function (ACF / PACF) plots.
-4. **🔗 Correlations**: Pairwise correlation heatmap, 4-variable scatter matrix, multi-panel dashboard, calendar heatmap, and lag plots ($k=1, k=7$).
-5. **🗓️ Seasonal Analysis**: Seasonally grouped boxplots, parallel coordinates, and 3D scatter interaction space (Temperature × Humidity × Pressure).
-6. **⚠️ Volatility & Outliers**: 7-day rolling standard deviation volatility tracking and local rolling Z-score outlier detection ($|Z| > 2.5$).
+The system relies strictly on a **causal 168-hour historical context** ($t - 168\text{h} \dots t - 1\text{h}$) and real-time atmospheric measurements from Open-Meteo at prediction instant $t$. It guarantees **zero lookahead bias**, zero future target leakage, and 100% mathematical parity between training equations and production inference services.
 
 ---
 
-## 🛠️ Technical Workflow & Analysis Breakdown
+## 🏗️ System Architecture
 
-### 1. Data Acquisition & Structuring (`Part 1`)
-- **Source**: Open-Meteo Historical Weather API (`ECMWF ERA5 Reanalysis`).
-- **Target Coordinates**: Cairo, Egypt (`30.0444°N, 31.2357°E`).
-- **Time Horizon**: Full Year 2025 (365 daily observations).
-- **Data Quality**: **100% complete** (0 missing values, 0 duplicate timestamps, clean daily frequency `freq='D'`).
-
-### 2. Time-Series Decomposition & Stationarity (`Part 2 & 3`)
-- **STL Decomposition**: Decomposed daily mean temperature with `period=30` into smooth trend, periodic seasonal, and zero-centered residual components.
-- **ADF Stationarity Test**:
-  - **ADF Statistic**: `-0.9019`
-  - **p-value**: `0.7874`
-  - **Conclusion**: Fail to reject $H_0$ — series contains a unit root.
-
-```
-ADF Test Result:
-- Statistic: -0.9019
-- p-value  : 0.7874 (Fail to reject H0 -> Non-Stationary)
-- Critical Values: 1% (-3.449), 5% (-2.870), 10% (-2.571)
-```
-
-### 3. Anomaly Detection & Volatility (`Part 3`)
-- **Rolling Z-Score Outlier Flagging**: Utilized a 30-day rolling local window to compute dynamic Z-scores, preventing seasonal bias.
-- **Spring Volatility Peak**: Rolling standard deviation identified Spring (March–May) as the most volatile season due to erratic *Khamsin* heat waves and Mediterranean frontal passages.
-
----
-
-## 📂 Repository Structure
-
-```gcode
-Weather Project/
-├── weather_erd.ipynb        # Primary Jupyter Notebook (46 code cells + 59 markdown analyses)
-├── dashboard.html           # Full Interactive Plotly Web Dashboard (Self-contained, 1.8 MB)
-├── weather_cleaned.csv      # Cleaned daily weather dataset (365 rows x 11 columns)
-├── weather_raw.csv          # Raw exported API dataset
-├── weather.csv              # Initial exported dataset
-├── requirements.txt         # Python dependency manifest
-├── .gitignore               # Environment & cache exclusion rules
-└── README.md                # Project documentation & executive summary
+```text
+                               ┌────────────────────────────────┐
+                               │   Vanilla JS / CSS Dashboard   │
+                               │   (168h Slicing & Visualizer)  │
+                               └───────────────┬────────────────┘
+                                               │ HTTP / JSON
+                                               ▼
+                               ┌────────────────────────────────┐
+                               │      Django REST API Layer     │
+                               │      (/api/predict/, /health/) │
+                               └───────────────┬────────────────┘
+                                               │
+               ┌───────────────────────────────┼───────────────────────────────┐
+               │                               │                               │
+               ▼                               ▼                               ▼
+     ┌──────────────────┐            ┌───────────────────┐           ┌──────────────────┐
+     │ Validation Layer │            │  Weather Service  │           │ Feature Service  │
+     │  (Schema Checks) │            │ (Open-Meteo Sync) │           │(15 Causal Vector)│
+     └──────────────────┘            └─────────┬─────────┘           └─────────┬────────┘
+                                               │ Atmospheric at t              │
+                                               └───────────────┬───────────────┘
+                                                               │ 15-Feature Array
+                                                               ▼
+                                                   ┌──────────────────────┐
+                                                   │    Model Service     │
+                                                   │ (XGBoost Singleton)  │
+                                                   └───────────┬──────────┘
+                                                               │
+                                                               ▼
+                                                   ┌──────────────────────┐
+                                                   │  Forecast (t + 24h)  │
+                                                   └──────────────────────┘
 ```
 
 ---
 
-## 🚀 How to Run Locally
+## 📊 Measured Model Performance & Baselines
 
-### Prerequisites
-Ensure Python 3.11+ is installed on your system.
+Evaluated on **17,493 untouched out-of-sample chronological test rows** (2018–2019):
 
-### 1. Clone the Repository
+| Forecasting Strategy / Model | MAE (°C) | RMSE (°C) | $R^2$ Score | MedAE (°C) | Improvement vs Strategy |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| **XGBoost Production Model** | **1.3652** | **1.9144** | **0.9400** | **0.9725** | **Baseline Anchor** |
+| Baseline 1: 1-hour Persistence ($t-1\text{h}$) | 1.8497 | 2.4740 | 0.8998 | 1.4500 | **+26.2% better** |
+| Baseline 2: 24-hour Persistence ($t-24\text{h}$) | 1.8909 | 2.6628 | 0.8839 | 1.4800 | **+27.8% better** |
+| Baseline 3: 24-hour Rolling Mean | 4.1290 | 4.8884 | 0.6089 | 3.5100 | **+66.9% better** |
+| Baseline 4: 7-day Rolling Mean | 4.2320 | 5.0563 | 0.5816 | 3.6200 | **+67.7% better** |
+
+---
+
+## 📐 15-Feature Causal Specification
+
+The model consumes a frozen 15-element feature vector in this exact sequence:
+
+1. `apparent_temperature`: Atmospheric feel at $t$ via Open-Meteo.
+2. `pressure_msl`: Mean sea level pressure at $t$ (hPa).
+3. `relative_humidity_2m`: Air saturation at $t$ (%).
+4. `hour_cos`: Cyclical hour $\cos(2\pi \cdot \text{hour}/24)$.
+5. `month_cos`: Cyclical month $\cos(2\pi \cdot (\text{month}-1)/12)$.
+6. `dayofyear_sin`: Cyclical day of year $\sin(2\pi \cdot (\text{doy}-1)/\text{days})$.
+7. `dayofyear_cos`: Cyclical day of year $\cos(2\pi \cdot (\text{doy}-1)/\text{days})$.
+8. `temperature_2m_lag_1`: Observed temperature at $t - 1\text{h}$.
+9. `temperature_2m_lag_24`: Observed temperature at $t - 24\text{h}$.
+10. `temperature_2m_lag_72`: Observed temperature at $t - 72\text{h}$.
+11. `temperature_2m_lag_168`: Observed temperature at $t - 168\text{h}$.
+12. `temperature_2m_rolling_max_6`: Maximum temperature over $[t-6\text{h} \dots t-1\text{h}]$.
+13. `temperature_2m_rolling_max_24`: Maximum temperature over $[t-24\text{h} \dots t-1\text{h}]$.
+14. `temperature_2m_rolling_mean_24`: Mean temperature over $[t-24\text{h} \dots t-1\text{h}]$.
+15. `temperature_2m_rolling_std_24`: Sample standard deviation over $[t-24\text{h} \dots t-1\text{h}]$ ($\text{ddof}=1$).
+
+---
+
+## 🚀 Quickstart & Installation
+
+### 1. Clone & Set Up Environment
+
 ```bash
-git clone https://github.com/your-username/weather-time-series-eda.git
-cd weather-time-series-eda
-```
+git clone https://github.com/ToqaGhozlan/Machine_Learning_Summer_Intern_R5.git
+cd Machine_Learning_Summer_Intern_R5
 
-### 2. Set Up Virtual Environment & Install Dependencies
-```bash
-# Create virtual environment
+# Create & activate virtual environment
 python -m venv .venv
-
-# Activate virtual environment
-# On Windows (PowerShell):
-.venv\Scripts\Activate.ps1
+# On Windows:
+.venv\Scripts\activate
 # On Linux/macOS:
 source .venv/bin/activate
 
-# Install required packages
-pip install -r requirements.txt
+# Install dependencies
+pip install -r backend/requirements.txt
 ```
 
-### 3. Launch the Jupyter Notebook
+### 2. Configure Environment Variables
+
 ```bash
-jupyter notebook weather_erd.ipynb
+cp .env.example .env
+# Edit .env and supply your secret key
 ```
 
-### 4. View the Interactive Dashboard
-You can open `dashboard.html` directly in any web browser, or host it locally:
+### 3. Run Automated Tests & Verifications
+
 ```bash
-# Host using Python's built-in HTTP server
-python -m http.server 8000
+# Run Django test suite
+python backend/manage.py test weather -v 2
+
+# Verify feature engineering parity (< 1e-6 diff)
+python scripts/verify_features.py
+
+# Verify model serialization
+python scripts/verify_model.py
+
+# Run comprehensive smoke test
+python scripts/smoke_test.py
 ```
-Then navigate to `http://localhost:8000/dashboard.html` in your browser.
+
+### 4. Start Development Server
+
+```bash
+python backend/manage.py runserver 127.0.0.1:8000
+```
+Visit **[http://127.0.0.1:8000](http://127.0.0.1:8000)** to view the live dashboard.
 
 ---
 
-## 📜 License
+## 🐳 Docker Deployment
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+```bash
+docker-compose up --build
+```
+The application will be accessible at `http://localhost:8000`.
 
 ---
 
-## ✍️ Author & Credits
+## 🔒 Security & Best Practices
 
-- **Data Source**: [Open-Meteo ERA5 Historical Weather API](https://open-meteo.com/)
-- **Analysis & Development**: Senior Data Science & Engineering Project
+- **Zero Hardcoded Secrets:** All secrets, keys, and environments are loaded via environment variables (`.env`).
+- **Input Sanitization:** All payload arrays and timestamps undergo strict bounds checking, shape assertions, and UTC normalization.
+- **Fail-Safe Fallbacks:** External Open-Meteo requests timeout after 10 seconds and return structured HTTP 503 error payloads without exposing internal tracebacks.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
