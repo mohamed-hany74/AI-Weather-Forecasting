@@ -16,7 +16,7 @@
 **WeatherCast AI** is an end-to-end machine learning system engineered to predict ambient 2-meter air temperature (`temperature_2m`) in Cairo, Egypt **24 hours ahead** ($t + 24\text{h}$).
 
 ### Key Principles
-- **Strictly Causal 168-Hour Window:** Consumes strictly $[t-168\text{h} \dots t-1\text{h}]$ observed history. Zero lookahead leakage.
+- **Strictly Causal 168-Hour Window:** Consumes strictly $[t-168\text{h} \dots t-1\text{h}]$ observed history: no look-ahead in features; imputation after split; test period not used for training.
 - **Real-Time Atmospheric Sync:** Integrates with the Open-Meteo API to fetch real-time and historical exogenous variables at reference timestamp $t$.
 - **Mathematical Feature Parity:** 100% parity between training equations and production Django services ($\text{Max Error} < 10^{-11}$).
 - **Thread-Safe Model Singleton:** The serialized XGBoost booster JSON model is loaded once into memory on server boot ($0.38\text{ ms}$ inference latency).

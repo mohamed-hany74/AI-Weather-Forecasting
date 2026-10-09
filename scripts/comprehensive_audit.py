@@ -53,8 +53,10 @@ def run_full_audit():
     df_feat = engineer_dataframe_features(df)
     df_clean = df_feat.dropna(subset=FEATURE_NAMES + ["target"]).copy()
 
-    # Split: Train (2010-2017), Test (2018-2019)
-    split_dt = pd.to_datetime("2018-01-01 00:00:00+00:00")
+    # Split: Canonical 80/20 chronological split matching train.py and model_metadata.json
+    n_total = len(df)
+    n_test = int(n_total * 0.20)
+    split_dt = df.index[n_total - n_test]  # 2017-12-31 12:00:00+00:00
     purge_dt = split_dt - pd.Timedelta(hours=24)
 
     df_train = df_clean[df_clean.index < purge_dt].copy()
