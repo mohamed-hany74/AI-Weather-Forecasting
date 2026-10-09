@@ -32,7 +32,8 @@ class ApiEndpointTests(TestCase):
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data["status"], "success")
-        self.assertEqual(data["model"]["feature_count"], 15)
+        self.assertEqual(data["model"]["feature_count"], 21)
+
 
     @patch("weather.services.forecast_service.fetch_realtime_exogenous")
     def test_predict_endpoint_success(self, mock_fetch):

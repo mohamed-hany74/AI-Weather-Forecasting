@@ -84,9 +84,10 @@ class FeatureServiceTests(TestCase):
         raw_press = 1010.0
         raw_hum = 95.0
 
-        calibrated = calibrate_exogenous(raw_app_t, raw_press, raw_hum)
+        calibrated = calibrate_exogenous(raw_app_t, raw_press, raw_hum, 15.0, 10.0, 20.0, 0.0, 0.0)
         self.assertAlmostEqual(calibrated.apparent_temperature, 30.0 + EXOGENOUS_CALIBRATION_OFFSETS["apparent_temperature"], places=3)
         self.assertAlmostEqual(calibrated.pressure_msl, 1010.0 + EXOGENOUS_CALIBRATION_OFFSETS["pressure_msl"], places=3)
         # 95.0 + 11.762 = 106.762 -> clipped to 100.0
         self.assertEqual(calibrated.relative_humidity_2m, 100.0)
+
 

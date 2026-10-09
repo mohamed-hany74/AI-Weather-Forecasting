@@ -1,9 +1,9 @@
 """
-Critical Test #2: Train vs Production Deterministic Parity Verification.
+Critical Test #2: Train vs Production Deterministic Parity Verification (Phase 3).
 Verifies:
-1. Exact feature construction parity between training DataFrame and production FeatureService across 100+ test timestamps.
+1. Exact feature construction parity between training DataFrame and production FeatureService across 200 test timestamps.
 2. Exact prediction parity between training in-memory XGBoost model and saved production JSON model loaded through model_service.py.
-3. Quantifies MAE difference, RMSE difference, max absolute prediction difference, and R² difference.
+3. Quantifies MAE difference, RMSE difference, max absolute prediction difference.
 """
 
 import os
@@ -43,12 +43,10 @@ def verify_train_production_parity():
 
     # B. Reproduce exact training features
     df_feat = engineer_dataframe_features(df)
-    df_clean = df_feat.dropna(subset=FEATURE_NAMES + ["target"]).copy()
+    df_clean = df_feat.dropna(subset=FEATURE_NAMES + ["target", "target_abs"]).copy()
 
     split_dt = pd.to_datetime("2018-01-01 00:00:00+00:00")
     df_test = df_clean[df_clean.index >= split_dt].copy()
-    X_test_df = df_test[FEATURE_NAMES]
-    y_test = df_test["target"]
 
     # C. Select 200 deterministic test timestamps spread evenly across 2018-2019
     sample_indices = np.linspace(0, len(df_test) - 1, 200, dtype=int)
@@ -70,27 +68,40 @@ def verify_train_production_parity():
 
     for idx, (t, row) in enumerate(test_sample.iterrows()):
         vec_train = row[FEATURE_NAMES].values.astype(float).tolist()
-        
-        # 1. Direct prediction from training feature row
+        lag_24 = float(row["temperature_2m_lag_24"])
+
+        # 1. Direct prediction from training feature row (delta + lag_24)
         dmat = xgb.DMatrix(pd.DataFrame([row[FEATURE_NAMES]]), feature_names=FEATURE_NAMES)
-        p_train = float(booster_ref.predict(dmat)[0])
-        preds_training_ref.append(p_train)
+        p_delta_train = float(booster_ref.predict(dmat)[0])
+        p_abs_train = lag_24 + p_delta_train
+        preds_training_ref.append(p_abs_train)
 
         # 2. Production model_service on exact training vector
-        p_prod_direct = predict_temperature(vec_train)
+        p_prod_direct, _, _ = predict_temperature(vec_train, lag_24=lag_24)
         preds_production_service.append(p_prod_direct)
 
         # 3. Production FeatureService reconstructing vector from raw 168h history + exogenous
         raw_idx = df.index.get_loc(t)
         history_168 = df[TARGET].iloc[raw_idx-168:raw_idx].tolist()
         row_raw = df.loc[t]
+
+        # Calculate pressure changes
+        press_now = float(row_raw["pressure_msl"])
+        p_ch3 = press_now - float(df["pressure_msl"].iloc[raw_idx - 3])
+        p_ch6 = press_now - float(df["pressure_msl"].iloc[raw_idx - 6])
+
         exo = ExogenousWeather(
             apparent_temperature=float(row_raw["apparent_temperature"]),
-            pressure_msl=float(row_raw["pressure_msl"]),
-            relative_humidity_2m=float(row_raw["relative_humidity_2m"])
+            pressure_msl=press_now,
+            relative_humidity_2m=float(row_raw["relative_humidity_2m"]),
+            dew_point_2m=float(row_raw["dew_point_2m"]),
+            wind_speed_10m=float(row_raw["wind_speed_10m"]),
+            cloud_cover=float(row_raw["cloud_cover"]),
+            pressure_change_3h=p_ch3,
+            pressure_change_6h=p_ch6
         )
         vec_prod_reconstructed = build_production_features(history_168, t, exo)
-        p_prod_hist = predict_temperature(vec_prod_reconstructed)
+        p_prod_hist, _, _ = predict_temperature(vec_prod_reconstructed, lag_24=lag_24)
         preds_production_from_history.append(p_prod_hist)
 
         # Measure feature vector difference

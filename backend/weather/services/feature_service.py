@@ -1,5 +1,5 @@
 """
-Feature Service: Builds and validates the 15 production features.
+Feature Service: Builds and validates the 21 production features (Phase 3).
 """
 
 import math
@@ -19,7 +19,7 @@ def build_production_features(
     exogenous: ExogenousWeather
 ) -> List[float]:
     """
-    Build the exact 15 frozen features in the exact contract order.
+    Build the exact 21 features in the exact contract order.
     history_168 is ordered [t-168h, ..., t-1h].
     """
     if len(temperature_history_168) != 168:
@@ -48,12 +48,23 @@ def build_production_features(
     rolling_max_6 = float(np.max(arr[-6:]))
     rolling_max_24 = float(np.max(arr[-24:]))
     rolling_mean_24 = float(np.mean(arr[-24:]))
-    rolling_std_24 = float(np.std(arr[-24:], ddof=1))  # sample std matching training
+    rolling_std_24 = float(np.std(arr[-24:], ddof=1))
+
+    # 4. Hours since daily max
+    last_24 = arr[-24:]
+    idx_max = int(np.argmax(last_24))
+    hours_since_daily_max = float(24 - idx_max)
 
     feature_dict = {
         "apparent_temperature": float(exogenous.apparent_temperature),
         "pressure_msl": float(exogenous.pressure_msl),
         "relative_humidity_2m": float(exogenous.relative_humidity_2m),
+        "dew_point_2m": float(exogenous.dew_point_2m),
+        "wind_speed_10m": float(exogenous.wind_speed_10m),
+        "cloud_cover": float(exogenous.cloud_cover),
+        "pressure_change_3h": float(exogenous.pressure_change_3h),
+        "pressure_change_6h": float(exogenous.pressure_change_6h),
+        "hours_since_daily_max": hours_since_daily_max,
         "hour_cos": hour_cos,
         "month_cos": month_cos,
         "dayofyear_sin": dayofyear_sin,

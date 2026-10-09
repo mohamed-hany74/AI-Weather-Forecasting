@@ -1,5 +1,5 @@
 """
-Data structures and schema validation for WeatherCast AI.
+Data structures and schema validation for WeatherCast AI (Phase 3).
 """
 
 import math
@@ -20,10 +20,15 @@ from .contracts import (
     MIN_PRESSURE_MSL,
     MAX_PRESSURE_MSL,
     MIN_APPARENT_TEMP,
-    MAX_APPARENT_TEMP
+    MAX_APPARENT_TEMP,
+    MIN_DEW_POINT,
+    MAX_DEW_POINT,
+    MIN_WIND_SPEED,
+    MAX_WIND_SPEED,
+    MIN_CLOUD_COVER,
+    MAX_CLOUD_COVER
 )
 from .exceptions import ValidationError, TemporalAlignmentError
-
 
 
 @dataclass(frozen=True)
@@ -31,6 +36,11 @@ class ExogenousWeather:
     apparent_temperature: float
     pressure_msl: float
     relative_humidity_2m: float
+    dew_point_2m: float = 15.0
+    wind_speed_10m: float = 10.0
+    cloud_cover: float = 20.0
+    pressure_change_3h: float = 0.0
+    pressure_change_6h: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -62,7 +72,6 @@ class PredictionRequest:
                 if parsed_time.tzinfo is not None:
                     parsed_time = parsed_time.astimezone(timezone.utc)
                 else:
-                    # Treat naive as UTC explicitly
                     parsed_time = parsed_time.replace(tzinfo=timezone.utc)
             except ValueError:
                 errors["current_time"] = f"Invalid ISO-8601 timestamp: '{raw_time}'."
@@ -135,20 +144,26 @@ class PredictionRequest:
                     errors["exogenous_weather"] = f"Missing required exogenous keys: {', '.join(missing)}."
                 else:
                     exo_vals = {}
-                    for field in exo_fields:
-                        try:
-                            val = float(raw_exo[field])
-                            if not math.isfinite(val):
-                                errors[f"exogenous_weather.{field}"] = f"Field '{field}' must be a finite number."
-                            else:
-                                exo_vals[field] = val
-                        except (ValueError, TypeError):
-                            errors[f"exogenous_weather.{field}"] = f"Field '{field}' must be a valid float."
+                    all_possible_fields = [
+                        "apparent_temperature", "pressure_msl", "relative_humidity_2m",
+                        "dew_point_2m", "wind_speed_10m", "cloud_cover",
+                        "pressure_change_3h", "pressure_change_6h"
+                    ]
+                    for field in all_possible_fields:
+                        if field in raw_exo:
+                            try:
+                                val = float(raw_exo[field])
+                                if not math.isfinite(val):
+                                    errors[f"exogenous_weather.{field}"] = f"Field '{field}' must be a finite number."
+                                else:
+                                    exo_vals[field] = val
+                            except (ValueError, TypeError):
+                                errors[f"exogenous_weather.{field}"] = f"Field '{field}' must be a valid float."
 
                     if not errors:
-                        hum = exo_vals["relative_humidity_2m"]
-                        press = exo_vals["pressure_msl"]
-                        app_t = exo_vals["apparent_temperature"]
+                        hum = float(raw_exo["relative_humidity_2m"])
+                        press = float(raw_exo["pressure_msl"])
+                        app_t = float(raw_exo["apparent_temperature"])
 
                         if not (MIN_RELATIVE_HUMIDITY <= hum <= MAX_RELATIVE_HUMIDITY):
                             errors["exogenous_weather.relative_humidity_2m"] = (
@@ -163,16 +178,31 @@ class PredictionRequest:
                                 f"apparent_temperature ({app_t}°C) out of bounds [{MIN_APPARENT_TEMP}, {MAX_APPARENT_TEMP}]."
                             )
 
+                        dew = exo_vals.get("dew_point_2m", 15.0)
+                        wind = exo_vals.get("wind_speed_10m", 10.0)
+                        cloud = exo_vals.get("cloud_cover", 20.0)
+
+                        if "dew_point_2m" in exo_vals and not (MIN_DEW_POINT <= dew <= MAX_DEW_POINT):
+                            errors["exogenous_weather.dew_point_2m"] = f"dew_point_2m ({dew}°C) out of bounds."
+                        if "wind_speed_10m" in exo_vals and not (MIN_WIND_SPEED <= wind <= MAX_WIND_SPEED):
+                            errors["exogenous_weather.wind_speed_10m"] = f"wind_speed_10m ({wind} km/h) out of bounds."
+                        if "cloud_cover" in exo_vals and not (MIN_CLOUD_COVER <= cloud <= MAX_CLOUD_COVER):
+                            errors["exogenous_weather.cloud_cover"] = f"cloud_cover ({cloud}%) out of bounds."
+
                         if not errors:
                             exogenous_obj = ExogenousWeather(
                                 apparent_temperature=app_t,
                                 pressure_msl=press,
-                                relative_humidity_2m=hum
+                                relative_humidity_2m=hum,
+                                dew_point_2m=dew,
+                                wind_speed_10m=wind,
+                                cloud_cover=cloud,
+                                pressure_change_3h=exo_vals.get("pressure_change_3h", 0.0),
+                                pressure_change_6h=exo_vals.get("pressure_change_6h", 0.0)
                             )
 
         if errors:
             raise ValidationError("Payload schema validation failed.", errors=errors)
-
 
         return cls(
             reference_time=parsed_time,
@@ -189,4 +219,5 @@ class PredictionResponse:
     forecast_horizon_hours: int
     forecast_time: str
     predicted_temperature_2m: float
+    confidence_interval_80: Dict[str, float]
     unit: str = "°C"
