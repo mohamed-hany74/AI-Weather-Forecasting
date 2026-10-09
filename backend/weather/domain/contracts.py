@@ -34,3 +34,15 @@ MIN_LATITUDE = -90.0
 MAX_LATITUDE = 90.0
 MIN_LONGITUDE = -180.0
 MAX_LONGITUDE = 180.0
+
+# Empirical Bias Calibration (ERA5 Reanalysis vs Open-Meteo Forecast API)
+# Measured in Phase 1 Scientific Truth Audit (2026 live period, 1608 hours):
+# Forecast API apparent_temp had -1.555°C bias vs ERA5 -> Add +1.555
+# Forecast API relative_humidity had -11.762% bias vs ERA5 -> Add +11.762
+# Forecast API pressure_msl had -0.143 hPa bias vs ERA5 -> Add +0.143
+EXOGENOUS_CALIBRATION_OFFSETS = {
+    "apparent_temperature": 1.555,
+    "relative_humidity_2m": 11.762,
+    "pressure_msl": 0.143
+}
+

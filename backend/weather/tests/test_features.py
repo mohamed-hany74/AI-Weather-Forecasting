@@ -74,3 +74,19 @@ class FeatureServiceTests(TestCase):
         # day 1 in 366 -> sin(0) = 0.0, cos(0) = 1.0
         self.assertAlmostEqual(feat["dayofyear_sin"], 0.0)
         self.assertAlmostEqual(feat["dayofyear_cos"], 1.0)
+
+    def test_exogenous_calibration_and_clipping(self):
+        """Scenario A calibration adds empirical offsets and clips humidity."""
+        from weather.services.weather_service import calibrate_exogenous
+        from weather.domain.contracts import EXOGENOUS_CALIBRATION_OFFSETS
+
+        raw_app_t = 30.0
+        raw_press = 1010.0
+        raw_hum = 95.0
+
+        calibrated = calibrate_exogenous(raw_app_t, raw_press, raw_hum)
+        self.assertAlmostEqual(calibrated.apparent_temperature, 30.0 + EXOGENOUS_CALIBRATION_OFFSETS["apparent_temperature"], places=3)
+        self.assertAlmostEqual(calibrated.pressure_msl, 1010.0 + EXOGENOUS_CALIBRATION_OFFSETS["pressure_msl"], places=3)
+        # 95.0 + 11.762 = 106.762 -> clipped to 100.0
+        self.assertEqual(calibrated.relative_humidity_2m, 100.0)
+
