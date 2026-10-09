@@ -71,9 +71,10 @@ USER appuser
 # Expose production port
 EXPOSE 8000
 
-# Container Healthcheck (Checks internal /api/health/ endpoint)
+# Container Healthcheck (Checks ML model readiness via /api/ready/)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -f http://127.0.0.1:8000/api/health/ || exit 1
+    CMD curl -f http://127.0.0.1:8000/api/ready/ || exit 1
 
-# Production Gunicorn WSGI Server entrypoint
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "2", "--timeout", "30", "--access-logfile", "-", "--error-logfile", "-", "--chdir", "/app/backend", "config.wsgi:application"]
+# Production Gunicorn WSGI Server entrypoint with --preload and --timeout 30
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "2", "--timeout", "30", "--preload", "--access-logfile", "-", "--error-logfile", "-", "--chdir", "/app/backend", "config.wsgi:application"]
+

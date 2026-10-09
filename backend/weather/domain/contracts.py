@@ -27,13 +27,21 @@ FEATURE_NAMES: List[str] = [
     "temperature_2m_rolling_std_24"
 ]
 
-# Physical bounds for Cairo and atmospheric plausibility
+# Physical bounds for atmospheric plausibility
 MIN_ATMOSPHERIC_TEMP = -20.0
 MAX_ATMOSPHERIC_TEMP = 60.0
 MIN_LATITUDE = -90.0
 MAX_LATITUDE = 90.0
 MIN_LONGITUDE = -180.0
 MAX_LONGITUDE = 180.0
+
+# Exogenous input strict validation bounds
+MIN_RELATIVE_HUMIDITY = 0.0
+MAX_RELATIVE_HUMIDITY = 100.0
+MIN_PRESSURE_MSL = 870.0
+MAX_PRESSURE_MSL = 1085.0
+MIN_APPARENT_TEMP = -60.0
+MAX_APPARENT_TEMP = 60.0
 
 # Empirical Bias Calibration (ERA5 Reanalysis vs Open-Meteo Forecast API)
 # Measured in Phase 1 Scientific Truth Audit (2026 live period, 1608 hours):
@@ -45,4 +53,5 @@ EXOGENOUS_CALIBRATION_OFFSETS = {
     "relative_humidity_2m": 11.762,
     "pressure_msl": 0.143
 }
+
 

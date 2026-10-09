@@ -14,9 +14,16 @@ from .contracts import (
     MIN_LATITUDE,
     MAX_LATITUDE,
     MIN_LONGITUDE,
-    MAX_LONGITUDE
+    MAX_LONGITUDE,
+    MIN_RELATIVE_HUMIDITY,
+    MAX_RELATIVE_HUMIDITY,
+    MIN_PRESSURE_MSL,
+    MAX_PRESSURE_MSL,
+    MIN_APPARENT_TEMP,
+    MAX_APPARENT_TEMP
 )
 from .exceptions import ValidationError, TemporalAlignmentError
+
 
 
 @dataclass(frozen=True)
@@ -115,21 +122,57 @@ class PredictionRequest:
                     errors["temperature_history_168h"] = f"Index {idx} is not a valid number: '{val}'."
                     break
 
-        # 4. Optional Exogenous Weather
+        # 4. Optional Exogenous Weather (Strict validation if provided)
         exogenous_obj = None
-        raw_exo = data.get("exogenous_weather")
-        if raw_exo and isinstance(raw_exo, dict):
-            try:
-                exogenous_obj = ExogenousWeather(
-                    apparent_temperature=float(raw_exo["apparent_temperature"]),
-                    pressure_msl=float(raw_exo["pressure_msl"]),
-                    relative_humidity_2m=float(raw_exo["relative_humidity_2m"])
-                )
-            except (KeyError, ValueError, TypeError):
-                pass
+        if "exogenous_weather" in data:
+            raw_exo = data.get("exogenous_weather")
+            if not isinstance(raw_exo, dict):
+                errors["exogenous_weather"] = "Field 'exogenous_weather' must be a JSON object."
+            else:
+                exo_fields = ["apparent_temperature", "pressure_msl", "relative_humidity_2m"]
+                missing = [f for f in exo_fields if f not in raw_exo or raw_exo[f] is None]
+                if missing:
+                    errors["exogenous_weather"] = f"Missing required exogenous keys: {', '.join(missing)}."
+                else:
+                    exo_vals = {}
+                    for field in exo_fields:
+                        try:
+                            val = float(raw_exo[field])
+                            if not math.isfinite(val):
+                                errors[f"exogenous_weather.{field}"] = f"Field '{field}' must be a finite number."
+                            else:
+                                exo_vals[field] = val
+                        except (ValueError, TypeError):
+                            errors[f"exogenous_weather.{field}"] = f"Field '{field}' must be a valid float."
+
+                    if not errors:
+                        hum = exo_vals["relative_humidity_2m"]
+                        press = exo_vals["pressure_msl"]
+                        app_t = exo_vals["apparent_temperature"]
+
+                        if not (MIN_RELATIVE_HUMIDITY <= hum <= MAX_RELATIVE_HUMIDITY):
+                            errors["exogenous_weather.relative_humidity_2m"] = (
+                                f"relative_humidity_2m ({hum}%) out of bounds [{MIN_RELATIVE_HUMIDITY}, {MAX_RELATIVE_HUMIDITY}]."
+                            )
+                        if not (MIN_PRESSURE_MSL <= press <= MAX_PRESSURE_MSL):
+                            errors["exogenous_weather.pressure_msl"] = (
+                                f"pressure_msl ({press} hPa) out of bounds [{MIN_PRESSURE_MSL}, {MAX_PRESSURE_MSL}]."
+                            )
+                        if not (MIN_APPARENT_TEMP <= app_t <= MAX_APPARENT_TEMP):
+                            errors["exogenous_weather.apparent_temperature"] = (
+                                f"apparent_temperature ({app_t}°C) out of bounds [{MIN_APPARENT_TEMP}, {MAX_APPARENT_TEMP}]."
+                            )
+
+                        if not errors:
+                            exogenous_obj = ExogenousWeather(
+                                apparent_temperature=app_t,
+                                pressure_msl=press,
+                                relative_humidity_2m=hum
+                            )
 
         if errors:
             raise ValidationError("Payload schema validation failed.", errors=errors)
+
 
         return cls(
             reference_time=parsed_time,

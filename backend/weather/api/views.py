@@ -16,20 +16,36 @@ from ..domain.exceptions import (
     WeatherCastBaseException
 )
 from ..services.forecast_service import generate_24h_forecast
-from ..services.model_service import get_safe_model_info
+from ..services.model_service import get_safe_model_info, is_model_ready
 from .serializers import format_error_response
+from .throttling import ratelimit
 
 logger = logging.getLogger(__name__)
 
 
 @require_http_methods(["GET"])
 def health_check(request: HttpRequest) -> JsonResponse:
-    """GET /api/health/ - Service health check."""
+    """GET /api/health/ - Service liveness probe."""
     return JsonResponse({
         "status": "ok",
         "service": "WeatherCast AI API",
         "version": "2.0.0"
     }, status=200)
+
+
+@require_http_methods(["GET"])
+def readiness_check(request: HttpRequest) -> JsonResponse:
+    """
+    GET /api/ready/ - Kubernetes/Container readiness probe.
+    Returns 200 {"status": "ready"} if model is initialized with 15 features;
+    returns 503 Service Unavailable if uninitialized or misconfigured.
+    """
+    if is_model_ready():
+        return JsonResponse({"status": "ready"}, status=200)
+    return JsonResponse(
+        format_error_response("Model is not initialized or expects invalid feature contract.", code="NOT_READY"),
+        status=503
+    )
 
 
 @require_http_methods(["GET"])
@@ -51,8 +67,10 @@ def model_info(request: HttpRequest) -> JsonResponse:
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@ratelimit(requests_per_minute=60)
 def predict_temperature_view(request: HttpRequest) -> JsonResponse:
-    """POST /api/predict/ - 24-hour temperature forecast endpoint."""
+    """POST /api/predict/ - 24-hour temperature forecast endpoint throttled to 60 req/min."""
+
     # 1. Parse JSON body
     try:
         if not request.body:

@@ -14,8 +14,9 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings.production
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/ready/"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 15s
+

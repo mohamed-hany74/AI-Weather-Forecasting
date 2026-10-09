@@ -44,5 +44,11 @@
     "test_mape": 6.6949,
     "test_medae": 0.973933,
     "training_timestamp": "2026-08-15T08:05:38.827359+00:00",
-    "random_state": 42
-}
+    "random_state": 42,
+    "dependencies": {
+        "xgboost": "3.4.0",
+        "numpy": "2.5.2",
+        "pandas": "3.0.5",
+        "scikit-learn": "1.9.0"
+    }
+}

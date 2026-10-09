@@ -8,6 +8,10 @@ import requests
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone, timedelta
 
+from django.core.cache import cache
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
+
 from ..domain.schemas import ExogenousWeather
 from ..domain.exceptions import ExternalWeatherServiceError
 from ..domain.contracts import EXOGENOUS_CALIBRATION_OFFSETS
@@ -16,7 +20,23 @@ logger = logging.getLogger(__name__)
 
 OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
-REQUEST_TIMEOUT = 10  # seconds
+REQUEST_TIMEOUT = 5  # Strict 5 seconds timeout
+CACHE_TTL = 900      # 15 minutes cache TTL
+
+# Resilient HTTP Session with 1 retry on 500/502/503/504
+_session = requests.Session()
+_retries = Retry(total=1, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
+_adapter = HTTPAdapter(max_retries=_retries)
+_session.mount("https://", _adapter)
+_session.mount("http://", _adapter)
+
+
+def get_cache_key(latitude: float, longitude: float, target_time: datetime) -> str:
+    """Generate normalized cache key: rounded to 2 decimals + exact UTC hour."""
+    norm_lat = round(latitude, 2)
+    norm_lon = round(longitude, 2)
+    hour_str = target_time.strftime("%Y%m%d%H")
+    return f"openmeteo_exo_{norm_lat}_{norm_lon}_{hour_str}"
 
 
 def calibrate_exogenous(apparent_t: float, press_msl: float, rel_hum: float) -> ExogenousWeather:
@@ -48,13 +68,25 @@ def fetch_realtime_exogenous(
     """
     Fetch apparent_temperature, pressure_msl, and relative_humidity_2m from Open-Meteo.
     Matches exact target hour in UTC.
-    Only requests the 3 exogenous features the model was trained on.
-    Uses Archive API for historical dates older than 5 days; Forecast API for recent/future dates.
-    Applies empirical ERA5 bias calibration if fetched from the live Forecast API.
+    Uses 15-minute caching based on rounded coordinates.
+    Employs strict 5-second timeout with 1 retry.
     """
     now_utc = datetime.now(timezone.utc)
     if target_time.tzinfo is None:
         target_time = target_time.replace(tzinfo=timezone.utc)
+
+    # Check cache first
+    cache_key = get_cache_key(latitude, longitude, target_time)
+    cached_val = cache.get(cache_key)
+    if cached_val is not None and isinstance(cached_val, dict):
+        try:
+            return ExogenousWeather(
+                apparent_temperature=cached_val["apparent_temperature"],
+                pressure_msl=cached_val["pressure_msl"],
+                relative_humidity_2m=cached_val["relative_humidity_2m"]
+            )
+        except (KeyError, TypeError):
+            pass
 
     # Determine if target_time is historical (> 5 days ago)
     is_historical = (now_utc - target_time) > timedelta(days=5)
@@ -86,7 +118,7 @@ def fetch_realtime_exogenous(
         api_url = OPEN_METEO_FORECAST_URL
 
     try:
-        response = requests.get(api_url, params=params, timeout=REQUEST_TIMEOUT)
+        response = _session.get(api_url, params=params, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         data = response.json()
     except requests.exceptions.Timeout:
@@ -98,6 +130,15 @@ def fetch_realtime_exogenous(
     except Exception as e:
         logger.error(f"Unexpected error when querying Open-Meteo: {e}")
         raise ExternalWeatherServiceError(f"Unexpected weather API error: {str(e)}")
+
+    def _save_and_return(result: ExogenousWeather) -> ExogenousWeather:
+        cache.set(cache_key, {
+            "apparent_temperature": result.apparent_temperature,
+            "pressure_msl": result.pressure_msl,
+            "relative_humidity_2m": result.relative_humidity_2m
+        }, CACHE_TTL)
+        return result
+
 
     # 1. Match in hourly array for the target hour
     target_utc_prefix = target_time.strftime("%Y-%m-%dT%H")
@@ -122,12 +163,14 @@ def fetch_realtime_exogenous(
 
                     # Only calibrate Forecast API data; Archive API is already ERA5
                     if calibrate and not is_historical:
-                        return calibrate_exogenous(raw_app_t, raw_press, raw_hum)
-                    return ExogenousWeather(
-                        apparent_temperature=raw_app_t,
-                        pressure_msl=raw_press,
-                        relative_humidity_2m=raw_hum
-                    )
+                        res = calibrate_exogenous(raw_app_t, raw_press, raw_hum)
+                    else:
+                        res = ExogenousWeather(
+                            apparent_temperature=raw_app_t,
+                            pressure_msl=raw_press,
+                            relative_humidity_2m=raw_hum
+                        )
+                    return _save_and_return(res)
             except (KeyError, IndexError, TypeError, ValueError):
                 logger.warning("Target hour extraction from hourly failed; trying fallback readings.")
 
@@ -145,14 +188,17 @@ def fetch_realtime_exogenous(
                 raw_hum = float(hum)
 
                 if calibrate:
-                    return calibrate_exogenous(raw_app_t, raw_press, raw_hum)
-                return ExogenousWeather(
-                    apparent_temperature=raw_app_t,
-                    pressure_msl=raw_press,
-                    relative_humidity_2m=raw_hum
-                )
+                    res = calibrate_exogenous(raw_app_t, raw_press, raw_hum)
+                else:
+                    res = ExogenousWeather(
+                        apparent_temperature=raw_app_t,
+                        pressure_msl=raw_press,
+                        relative_humidity_2m=raw_hum
+                    )
+                return _save_and_return(res)
         except (TypeError, ValueError) as e:
             raise ExternalWeatherServiceError(f"Invalid data types in Open-Meteo current: {e}")
+
 
     raise ExternalWeatherServiceError(f"Open-Meteo did not contain matching weather features for {target_utc_prefix}:00 UTC.")
 

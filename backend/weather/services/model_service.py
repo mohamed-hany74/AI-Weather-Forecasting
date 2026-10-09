@@ -4,6 +4,7 @@ Model Service: Thread-safe singleton for XGBoost model inference & metadata insp
 
 import json
 import logging
+import math
 import threading
 from pathlib import Path
 from typing import List, Dict, Any
@@ -45,50 +46,72 @@ def load_model_artifacts():
                 model.load_model(str(model_file))
                 _model_instance = model
 
-                # Load feature config
-                if config_file.exists():
-                    with open(config_file, 'r', encoding='utf-8') as f:
-                        _feature_config = json.load(f)
-                else:
-                    _feature_config = {"features": FEATURE_NAMES}
+                # Load feature config strictly
+                if not config_file.exists():
+                    raise ModelInferenceError(f"Feature config file not found: {config_file}")
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    _feature_config = json.load(f)
 
-                # Load metadata
-                if meta_file.exists():
-                    with open(meta_file, 'r', encoding='utf-8') as f:
-                        _metadata = json.load(f)
-                else:
-                    _metadata = {"model_type": "XGBRegressor", "features": FEATURE_NAMES}
+                # Load metadata strictly - fail fast if missing
+                if not meta_file.exists():
+                    raise ModelInferenceError(f"Model metadata file not found: {meta_file}")
+                with open(meta_file, 'r', encoding='utf-8') as f:
+                    _metadata = json.load(f)
 
                 logger.info(f"Loaded XGBoost model from {model_file} with {len(FEATURE_NAMES)} features.")
 
 
+def is_model_ready() -> bool:
+    """Check if model is initialized and expects exactly 15 features."""
+    try:
+        load_model_artifacts()
+        if _model_instance is None or _metadata is None:
+            return False
+        return len(FEATURE_NAMES) == REQUIRED_FEATURE_COUNT
+    except Exception as e:
+        logger.error(f"Readiness check failed: {e}")
+        return False
+
+
 def predict_temperature(feature_vector: List[float]) -> float:
-    """Run model inference on pre-ordered 15-element feature vector."""
+    """Run model inference on pre-ordered 15-element feature vector and validate output."""
     load_model_artifacts()
     if len(feature_vector) != REQUIRED_FEATURE_COUNT:
         raise ModelInferenceError(
             f"Expected {REQUIRED_FEATURE_COUNT} features, got {len(feature_vector)}"
         )
     try:
-        pred = float(_model_instance.predict([feature_vector])[0])
-        return pred
+        pred_raw = _model_instance.predict([feature_vector])[0]
+        pred = float(pred_raw)
     except Exception as e:
         logger.error(f"XGBoost predict failure: {e}", exc_info=True)
         raise ModelInferenceError(f"Model prediction failed: {str(e)}")
 
+    # Strict Output Validation: Guarantee finite number (no NaN, Inf, -Inf)
+    if not math.isfinite(pred):
+        logger.error(f"CRITICAL: Model generated non-finite output: {pred}. Input vector: {feature_vector}")
+        raise ModelInferenceError(f"Non-finite model prediction generated ({pred}).")
+
+    return pred
+
 
 def get_safe_model_info() -> Dict[str, Any]:
-    """Retrieve safe metadata for API presentation."""
+    """Retrieve verified metadata for API presentation without fallback masking."""
     load_model_artifacts()
+    if "test_mae" not in _metadata:
+        raise ModelInferenceError("Metadata does not contain required metric 'test_mae'.")
+
     return {
-        "model_type": _metadata.get("model_type", "XGBRegressor"),
-        "forecast_horizon_hours": _metadata.get("forecast_horizon_hours", 24),
+        "model_type": _metadata["model_type"],
+        "forecast_horizon_hours": _metadata["forecast_horizon_hours"],
         "feature_count": len(FEATURE_NAMES),
         "features": FEATURE_NAMES,
         "metrics": {
-            "test_mae": _metadata.get("test_mae", 1.37),
-            "test_rmse": _metadata.get("test_rmse", 1.93),
-            "test_r2": _metadata.get("test_r2", 0.94),
-            "test_mape": _metadata.get("test_mape", 6.75)
-        }
+            "test_mae": _metadata["test_mae"],
+            "test_rmse": _metadata["test_rmse"],
+            "test_r2": _metadata["test_r2"],
+            "test_mape": _metadata["test_mape"]
+        },
+        "dependencies": _metadata.get("dependencies", {})
     }
+
