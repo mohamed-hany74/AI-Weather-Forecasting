@@ -1,0 +1,103 @@
+# ==============================================================================
+# Docker Ignore - WeatherCast AI
+# Production container build exclusion list
+# ==============================================================================
+
+# Git and Version Control
+.git/
+.gitignore
+.gitattributes
+
+# Python Virtual Environments & Bytecode
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environment Variables & Local Secrets (NEVER bake into image)
+.env
+.env.*
+!.env.example
+*.env
+local_settings.py
+secrets.json
+credentials.json
+*.pem
+*.key
+*.cert
+*.crt
+
+# Local Database Files
+*.sqlite3
+*.sqlite3-journal
+*.db
+*.db-journal
+backend/db.sqlite3
+backend/db.sqlite3-journal
+
+# Training Datasets & Heavy Offline Artifacts (Model weights remain in ml/models/)
+weather.csv
+ml/data/
+*.csv
+*.parquet
+*.feather
+Weather_Model.ipynb
+Weather_Model_PRODUCTION.ipynb
+ml/notebooks/
+ml/training/
+_backup/
+backup/
+
+# Logs and Runtime Dumps
+*.log
+logs/
+*.pid
+tmp/
+temp/
+scratch/
+
+# Testing & Linting Caches
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+tests/
+backend/tests/
+backend/weather/tests/
+
+# IDE and OS Cache Files
+.idea/
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/

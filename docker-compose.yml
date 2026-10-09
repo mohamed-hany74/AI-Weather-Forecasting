@@ -1,16 +1,21 @@
-version: '3.8'
-
 services:
   web:
     build:
       context: .
       dockerfile: Dockerfile
-    command: python backend/manage.py runserver 0.0.0.0:8000
-    volumes:
-      - .:/app
+    image: weathercast-ai:local
+    container_name: weathercast_app
     ports:
       - "8000:8000"
     environment:
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-dev-testing-insecure-key-use-env-in-production}
-      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
-      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-*}
+      - DJANGO_SECRET_KEY=local-dev-secret-key-must-be-changed-in-production-environments-32char
+      - DJANGO_DEBUG=False
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,web
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

@@ -56,7 +56,7 @@ WeatherCast-AI/
 ├── .gitignore                 # Enterprise-grade gitignore
 ├── docker-compose.yml         # Containerized local orchestration
 ├── Dockerfile                 # Slim production container
-└── docs/                      # ARCHITECTURE.md, API_DOCUMENTATION.md, MODEL_CONTRACT.md, FINAL_REAL_AUDIT.md
+└── DEPLOYMENT.md              # Docker & cloud deployment guide
 ```
 
 ---

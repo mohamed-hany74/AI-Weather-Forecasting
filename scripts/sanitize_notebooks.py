@@ -6,9 +6,8 @@ import os
 import re
 
 notebook_files = [
-    'Weather_Model.ipynb',
-    'Weather_Model_PRODUCTION.ipynb',
-    os.path.join('ml', 'notebooks', 'Weather_Model_PRODUCTION.ipynb')
+    os.path.join('ml', 'notebooks', 'Weather_Model.ipynb'),
+    os.path.join('ml', 'notebooks', 'Weather_Model_PRODUCTION.ipynb'),
 ]
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
