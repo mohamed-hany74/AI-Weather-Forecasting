@@ -1,0 +1,8 @@
+# Option 2: Generate backend/requirements.lock by freezing the pinned exact packages
+# and retain `COPY backend/requirements.lock /build/requirements.txt` in Dockerfile.
+#
+# Command to create:
+# Copy-Item backend/requirements.txt backend/requirements.lock
+#
+# Dockerfile diff:
+# No changes to Dockerfile needed if backend/requirements.lock is created on disk.

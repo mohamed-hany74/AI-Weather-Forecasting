@@ -1,0 +1,9 @@
+# Option 1: Revert Dockerfile line 23 to backend/requirements.txt
+# Rationale: backend/requirements.txt is already an exact pinned file (Django==6.1, xgboost==3.4.0, etc.)
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -23,3 +23,3 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
+-# Copy dependency definition (pinned exact lockfile)
+-COPY backend/requirements.lock /build/requirements.txt
++# Copy dependency definition
++COPY backend/requirements.txt /build/requirements.txt

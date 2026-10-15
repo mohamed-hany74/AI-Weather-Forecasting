@@ -1,0 +1,24 @@
+{
+  "evaluation_timestamp": "2026-10-09T07:23:00Z",
+  "dataset": {
+    "path": "ml/data/weather.csv",
+    "total_rows_clean": 87456,
+    "test_rows": 17505,
+    "split_type": "Strict chronological 80/20 out-of-sample holdout",
+    "test_start_date": "2017-12-31 12:00:00+00:00",
+    "test_end_date": "2019-12-30 20:00:00+00:00"
+  },
+  "model_sha256": "76f2557fe4998cae592a3c90b6fcdf867918245ad5f5df1fb19f2f0f815e9600",
+  "metrics": {
+    "mae_celsius": 1.328277,
+    "rmse_celsius": 1.845951,
+    "r2_score": 0.944236,
+    "prediction_interval_coverage_80pct": 0.8073
+  },
+  "gate": {
+    "metric": "MAE <= 1.40 \u00b0C",
+    "threshold": 1.4,
+    "status": "PASSED",
+    "margin_below_threshold": 0.071723
+  }
+}

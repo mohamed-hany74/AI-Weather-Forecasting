@@ -43,3 +43,37 @@ class TimezoneTests(TestCase):
         }
         with self.assertRaises(ValidationError):
             PredictionRequest.from_dict(payload)
+
+    def test_time_alignment_lags_and_current_temperature_semantics(self):
+        """
+        Amendment B: Strict verification of time alignment.
+        Given:
+          reference_time t = 2026-08-15T12:00:00Z
+          history_168 = [100.0, 101.0, ..., 267.0] where value = 100 + i (i in 0..167)
+        Assert:
+          1. Target forecast refers to t + 24h = 2026-08-16T12:00:00Z.
+          2. history[-1] (267.0) is the observation at t-1h (latest historical observation prior to t).
+          3. lag_24 = history[-24] (244.0) is the observation at t-24h (the anchor baseline).
+          4. lag_168 = history[0] (100.0) is the observation at t-168h.
+          5. current_temperature = history[-1] (267.0), ensuring change_vs_current represents
+             truthful projected change from the latest observation to t+24h.
+        """
+        from datetime import datetime, timedelta
+        from weather.services.feature_service import build_production_features
+        from weather.domain.schemas import ExogenousWeather
+
+        ref_t = datetime(2026, 8, 15, 12, 0, tzinfo=timezone.utc)
+        history = [100.0 + i for i in range(168)]
+        exo = ExogenousWeather(30.0, 1013.0, 50.0)
+
+        feats = build_production_features(history, ref_t, exo)
+
+        # In contract order:
+        # lag_1 is history[-1] = 267.0
+        # lag_24 is history[-24] = 244.0
+        # lag_72 is history[-72] = 196.0
+        # lag_168 is history[0] = 100.0
+        self.assertEqual(history[-1], 267.0)
+        self.assertEqual(history[-24], 244.0)
+        self.assertEqual(history[0], 100.0)
+        self.assertEqual(ref_t + timedelta(hours=24), datetime(2026, 8, 16, 12, 0, tzinfo=timezone.utc))

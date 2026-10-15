@@ -31,15 +31,22 @@ def verify_model():
     print(f"Test RMSE     : {info['metrics']['test_rmse']}°C")
     print(f"Test R²       : {info['metrics']['test_r2']}")
 
-    # Run sample inference
+    # Run sample inference with exact 21 production features
+    # Contract: apparent_temp, pressure, humidity, dew_point, wind_speed, cloud_cover,
+    #           pressure_change_3h, pressure_change_6h, hours_since_daily_max,
+    #           hour_cos, month_cos, dayofyear_sin, dayofyear_cos,
+    #           lag_1, lag_24, lag_72, lag_168, rolling_max_6, rolling_max_24,
+    #           rolling_mean_24, rolling_std_24
     sample_vec = [
-        32.0, 1010.0, 55.0,
-        0.0, -0.866, -0.68, -0.73,
+        32.0, 1010.0, 55.0, 18.0, 12.0, 20.0,
+        -0.5, -1.0, 4.0,
+        -0.866, -0.68, -0.73, 0.68,
         28.0, 27.5, 27.0, 26.5,
         34.0, 34.0, 28.5, 4.0
     ]
+    lag_24_anchor = 27.5
 
-    pred = predict_temperature(sample_vec)
+    pred = predict_temperature(sample_vec, lag_24=lag_24_anchor)
     print(f"\nSample Prediction for Cairo summer day: {pred:.2f}°C")
     assert 20.0 <= pred <= 45.0, f"Sample prediction {pred}°C out of bounds!"
     print("[PASS] Model serialization and inference verified.")

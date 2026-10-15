@@ -13,13 +13,16 @@ from django.conf import settings
 from xgboost import XGBRegressor
 
 from ..domain.exceptions import ModelInferenceError
-from ..domain.contracts import FEATURE_NAMES, REQUIRED_FEATURE_COUNT
+from ..domain.contracts import (
+    FEATURE_NAMES,
+    REQUIRED_FEATURE_COUNT,
+    TYPICAL_ERROR_CELSIUS,
+    TYPICAL_ERROR_NOTE
+)
 
 logger = logging.getLogger(__name__)
 
 _model_instance = None
-_model_q10 = None
-_model_q90 = None
 _feature_config = None
 _metadata = None
 _lock = threading.Lock()
@@ -32,14 +35,12 @@ def _get_models_dir() -> Path:
 
 
 def load_model_artifacts():
-    global _model_instance, _model_q10, _model_q90, _feature_config, _metadata
+    global _model_instance, _feature_config, _metadata
     if _model_instance is None:
         with _lock:
             if _model_instance is None:
                 models_dir = _get_models_dir()
                 model_file = models_dir / 'xgboost_weather_model.json'
-                q10_file = models_dir / 'xgboost_weather_model_q10.json'
-                q90_file = models_dir / 'xgboost_weather_model_q90.json'
                 config_file = models_dir / 'feature_config.json'
                 meta_file = models_dir / 'model_metadata.json'
 
@@ -51,17 +52,7 @@ def load_model_artifacts():
                 model.load_model(str(model_file))
                 _model_instance = model
 
-                # Load Quantile Q10 model
-                if q10_file.exists():
-                    mq10 = XGBRegressor()
-                    mq10.load_model(str(q10_file))
-                    _model_q10 = mq10
-
-                # Load Quantile Q90 model
-                if q90_file.exists():
-                    mq90 = XGBRegressor()
-                    mq90.load_model(str(q90_file))
-                    _model_q90 = mq90
+                # Note: Quantile files (q10, q90) remain on disk untouched, but are decommissioned from serving.
 
                 # Load feature config strictly
                 if not config_file.exists():
@@ -75,7 +66,7 @@ def load_model_artifacts():
                 with open(meta_file, 'r', encoding='utf-8') as f:
                     _metadata = json.load(f)
 
-                logger.info(f"Loaded Phase 3 XGBoost models from {models_dir} with {len(FEATURE_NAMES)} features.")
+                logger.info(f"Loaded Phase 3 XGBoost model from {models_dir} with {len(FEATURE_NAMES)} features.")
 
 
 def is_model_ready() -> bool:
@@ -90,11 +81,11 @@ def is_model_ready() -> bool:
         return False
 
 
-def predict_temperature(feature_vector: List[float], lag_24: float) -> Tuple[float, float, float]:
+def predict_temperature(feature_vector: List[float], lag_24: float) -> float:
     """
     Run model inference on 21-element feature vector.
     Reconstructs absolute temperature: predicted_temperature = lag_24 + predicted_delta.
-    Also returns 80% dynamic prediction interval: (lower_bound, upper_bound).
+    Returns point forecast: pred_abs.
     """
     load_model_artifacts()
     if len(feature_vector) != REQUIRED_FEATURE_COUNT:
@@ -105,39 +96,23 @@ def predict_temperature(feature_vector: List[float], lag_24: float) -> Tuple[flo
         pred_delta_raw = _model_instance.predict([feature_vector])[0]
         pred_delta = float(pred_delta_raw)
         pred_abs = float(lag_24 + pred_delta)
-
-        # Quantile bounds
-        if _model_q10 is not None:
-            q10_delta = float(_model_q10.predict([feature_vector])[0])
-            lower_bound = float(lag_24 + q10_delta)
-        else:
-            lower_bound = pred_abs - 2.12
-
-        if _model_q90 is not None:
-            q90_delta = float(_model_q90.predict([feature_vector])[0])
-            upper_bound = float(lag_24 + q90_delta)
-        else:
-            upper_bound = pred_abs + 2.12
-
-        # Sanity ordering check on interval
-        if lower_bound > upper_bound:
-            lower_bound, upper_bound = upper_bound, lower_bound
-
     except Exception as e:
         logger.error(f"XGBoost predict failure: {e}", exc_info=True)
         raise ModelInferenceError(f"Model prediction failed: {str(e)}")
 
     # Strict Output Validation
-    for name, val in [("pred_abs", pred_abs), ("lower_bound", lower_bound), ("upper_bound", upper_bound)]:
-        if not math.isfinite(val):
-            logger.error(f"CRITICAL: Non-finite output in {name}: {val}. Input: {feature_vector}")
-            raise ModelInferenceError(f"Non-finite model prediction generated ({name}={val}).")
+    if not math.isfinite(pred_abs):
+        logger.error(f"CRITICAL: Non-finite output in pred_abs: {pred_abs}. Input: {feature_vector}")
+        raise ModelInferenceError(f"Non-finite model prediction generated (pred_abs={pred_abs}).")
 
-    return pred_abs, lower_bound, upper_bound
+    return pred_abs
 
 
 def get_safe_model_info() -> Dict[str, Any]:
-    """Retrieve verified metadata for API presentation without fallback masking."""
+    """
+    Retrieve verified metadata for API presentation.
+    Filters out obsolete interval coverage claims to reflect honest system performance.
+    """
     load_model_artifacts()
     if "test_mae" not in _metadata:
         raise ModelInferenceError("Metadata does not contain required metric 'test_mae'.")
@@ -154,7 +129,8 @@ def get_safe_model_info() -> Dict[str, Any]:
             "test_r2": _metadata["test_r2"],
             "test_mape": _metadata["test_mape"],
             "may_mae": _metadata.get("may_mae", 2.13),
-            "test_interval_coverage": _metadata.get("test_interval_coverage", 80.73)
+            "typical_error_celsius": TYPICAL_ERROR_CELSIUS,
+            "typical_error_note": TYPICAL_ERROR_NOTE
         },
         "dependencies": _metadata.get("dependencies", {})
     }

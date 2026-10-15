@@ -1,0 +1,64 @@
+{
+  "audit_timestamp": "2026-10-09T07:25:00Z",
+  "auditor": "Principal QA Architect & Security Tester",
+  "total_findings": 5,
+  "severity_distribution": {
+    "Critical": 0,
+    "High": 0,
+    "Medium": 2,
+    "Low": 1,
+    "Informational": 2
+  },
+  "findings": [
+    {
+      "id": "SEC-001",
+      "title": "DEBUG=True in Development Configuration",
+      "severity": "Medium",
+      "status": "Confirmed (Configuration-dependent)",
+      "component": "backend/config/settings/development.py",
+      "impact": "Information disclosure (tracebacks, environment paths, internal variables) if development settings are deployed to production environments.",
+      "evidence": "DEBUG = True is set in config/settings/development.py. In production.py, DEBUG is driven by environment variable DJANGO_DEBUG with fallback to False.",
+      "remediation": "Enforce that production deployments strictly use config.settings.production with DJANGO_DEBUG=False and secure secret key injection."
+    },
+    {
+      "id": "SEC-002",
+      "title": "Default Hardcoded Secret Key in Local Settings",
+      "severity": "Medium",
+      "status": "Confirmed (Configuration-dependent)",
+      "component": "backend/config/settings/base.py",
+      "impact": "Weak session signing and CSRF tokens if SECRET_KEY environment variable is not supplied in production.",
+      "evidence": "base.py contains a fallback default SECRET_KEY if not found in environment.",
+      "remediation": "In production.py, raise ImproperlyConfigured if SECRET_KEY is not explicitly set in the environment."
+    },
+    {
+      "id": "SEC-003",
+      "title": "In-Memory Cache Rate Limiting Scalability in Multi-Worker Setups",
+      "severity": "Low",
+      "status": "Theoretical / Architectural",
+      "component": "backend/weather/api/throttling.py",
+      "impact": "LocMemCache is per-process; across multiple Gunicorn/Uvicorn worker processes, an IP address could send up to (workers * limit) requests per minute.",
+      "evidence": "Throttling uses django.core.cache.cache which defaults to LocMemCache in development.",
+      "remediation": "Deploy Redis cache (django-redis) in production environment for distributed rate-limiting state synchronization."
+    },
+    {
+      "id": "SEC-004",
+      "title": "Strict Model Deserialization using XGBoost Native JSON",
+      "severity": "Informational (Mitigated / Positive)",
+      "status": "Verified Secure",
+      "component": "backend/weather/services/model_service.py",
+      "impact": "Zero arbitrary code execution vulnerability from model loading.",
+      "evidence": "Models are loaded exclusively via xgboost.Booster.load_model() from native JSON files rather than pickle / joblib serialization.",
+      "remediation": "Maintain native JSON model loading; prevent any regression to pickle or joblib."
+    },
+    {
+      "id": "SEC-005",
+      "title": "Bounded Exogenous Input Validation & Strict Error Masking",
+      "severity": "Informational (Mitigated / Positive)",
+      "status": "Verified Secure",
+      "component": "backend/weather/domain/schemas.py & backend/weather/api/views.py",
+      "impact": "Protection against NaN, Infinity, and extreme out-of-distribution numerical attacks; no internal filesystem paths or stack traces leaked to clients.",
+      "evidence": "InputContractsBoundaryTests (16 tests) confirmed 100% rejection with HTTP 400 and clean JSON error payloads.",
+      "remediation": "Keep strict schema contracts and Pydantic/dataclass boundaries intact."
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "evaluation_timestamp": "2026-10-09T07:23:00Z",
+  "parity_scenarios_evaluated": 100,
+  "max_absolute_difference": 2.781108676686017e-12,
+  "worst_feature": "temperature_2m_rolling_std_24",
+  "worst_timestamp": "2018-12-28 11:00:00+00:00",
+  "tolerance": 1e-06,
+  "parity_status": "PASSED",
+  "feature_order_exact_match": true,
+  "nan_or_missing_discrepancies": 0
+}

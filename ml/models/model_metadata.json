@@ -47,14 +47,15 @@
     "test_rows": 17505,
     "cv_mean_mae": 1.3748,
     "cv_std_mae": 0.09479,
-    "test_mae": 1.328277,
-    "test_rmse": 1.845951,
-    "test_r2": 0.944236,
-    "test_mape": 6.5256,
-    "test_medae": 0.965537,
+    "test_mae": 1.351566,
+    "test_rmse": 1.851038,
+    "test_r2": 0.943928,
+    "test_mape": 6.8148,
+    "test_medae": 1.014871,
     "may_mae": 2.134049,
     "training_timestamp": "2026-10-09T03:50:57.878615+00:00",
     "random_state": 42,
+    "model_sha256": "76f2557fe4998cae592a3c90b6fcdf867918245ad5f5df1fb19f2f0f815e9600",
     "dependencies": {
         "xgboost": "3.4.0",
         "numpy": "2.5.2",
@@ -62,4 +63,4 @@
         "scikit-learn": "1.9.0",
         "optuna": "5.0.0"
     }
-}
+}

@@ -27,11 +27,10 @@ class ModelServiceTests(TestCase):
             28.0, 27.5, 27.0, 26.5,  # 4 lags
             34.0, 34.0, 28.5, 4.0   # 4 rolling stats
         ]
-        pred, low, high = predict_temperature(vec, lag_24=27.5)
+        pred = predict_temperature(vec, lag_24=27.5)
         self.assertIsInstance(pred, float)
         self.assertGreater(pred, 15.0)
         self.assertLess(pred, 45.0)
-        self.assertLessEqual(low, high)
 
     def test_invalid_feature_length_raises_error(self):
         """Invalid feature length must raise ModelInferenceError."""

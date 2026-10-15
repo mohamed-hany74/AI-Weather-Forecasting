@@ -1,0 +1,130 @@
+{
+  "evaluation_period": "2026-08-01 to 2026-09-30 (61 days, August-September 2026)",
+  "ground_truth_source": "Open-Meteo Archive ERA5 Reanalysis (Observed actuals at t+24h)",
+  "production_source": "Open-Meteo Historical Forecast API (operational model inputs) + EXOGENOUS_CALIBRATION_OFFSETS",
+  "era5_source": "Open-Meteo Archive ERA5 Reanalysis (reanalysis inputs)",
+  "cairo": {
+    "location": "Cairo",
+    "is_out_of_region": false,
+    "modes": {
+      "production_like": {
+        "mae": 1.1645,
+        "rmse": 1.5063,
+        "mean_bias": -0.5052,
+        "max_error": 5.4356,
+        "worst_5_days": [
+          {
+            "day": "2026-09-26",
+            "abs_error": 2.7594
+          },
+          {
+            "day": "2026-08-10",
+            "abs_error": 2.7099
+          },
+          {
+            "day": "2026-08-24",
+            "abs_error": 2.4729
+          },
+          {
+            "day": "2026-08-25",
+            "abs_error": 2.3268
+          },
+          {
+            "day": "2026-08-23",
+            "abs_error": 2.1129
+          }
+        ]
+      },
+      "era5_style": {
+        "mae": 1.0038,
+        "rmse": 1.2982,
+        "mean_bias": 0.2878,
+        "max_error": 5.0466,
+        "worst_5_days": [
+          {
+            "day": "2026-09-26",
+            "abs_error": 2.2214
+          },
+          {
+            "day": "2026-09-17",
+            "abs_error": 2.1574
+          },
+          {
+            "day": "2026-09-25",
+            "abs_error": 1.9935
+          },
+          {
+            "day": "2026-08-28",
+            "abs_error": 1.9912
+          },
+          {
+            "day": "2026-08-10",
+            "abs_error": 1.927
+          }
+        ]
+      }
+    }
+  },
+  "alexandria": {
+    "location": "Alexandria",
+    "is_out_of_region": true,
+    "modes": {
+      "production_like": {
+        "mae": 1.0488,
+        "rmse": 1.3606,
+        "mean_bias": 0.499,
+        "max_error": 4.6659,
+        "worst_5_days": [
+          {
+            "day": "2026-09-26",
+            "abs_error": 2.5299
+          },
+          {
+            "day": "2026-09-25",
+            "abs_error": 2.2086
+          },
+          {
+            "day": "2026-09-17",
+            "abs_error": 1.9627
+          },
+          {
+            "day": "2026-09-27",
+            "abs_error": 1.9384
+          },
+          {
+            "day": "2026-09-08",
+            "abs_error": 1.8182
+          }
+        ]
+      },
+      "era5_style": {
+        "mae": 1.0513,
+        "rmse": 1.3466,
+        "mean_bias": 0.0941,
+        "max_error": 5.0395,
+        "worst_5_days": [
+          {
+            "day": "2026-09-26",
+            "abs_error": 2.3343
+          },
+          {
+            "day": "2026-09-24",
+            "abs_error": 2.1078
+          },
+          {
+            "day": "2026-09-27",
+            "abs_error": 2.0305
+          },
+          {
+            "day": "2026-09-17",
+            "abs_error": 1.8968
+          },
+          {
+            "day": "2026-08-25",
+            "abs_error": 1.8396
+          }
+        ]
+      }
+    }
+  }
+}

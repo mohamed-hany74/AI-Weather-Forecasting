@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-10-09T07:25:00Z",
+  "workload_iterations": 500,
+  "cold_model_load_ms": 157.83,
+  "feature_engineering_latency_ms": {
+    "mean": 0.044,
+    "p50": 0.041,
+    "p95": 0.051,
+    "p99": 0.079
+  },
+  "model_inference_latency_ms": {
+    "description": "Simultaneous 3-model Booster prediction (Mean + Q10 + Q90)",
+    "mean": 0.978,
+    "p50": 0.843,
+    "p95": 1.118,
+    "p99": 1.306
+  },
+  "end_to_end_local_latency_ms": {
+    "mean": 0.923,
+    "p50": 0.887,
+    "p95": 1.116,
+    "p99": 1.222
+  },
+  "estimated_local_throughput_req_per_sec": 1083.4
+}

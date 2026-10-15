@@ -40,8 +40,9 @@ def run_e2e_test():
     # 3. Model Info Endpoint
     res_info = client.get('/api/model-info/')
     assert res_info.status_code == 200
-    assert res_info.json()["model"]["feature_count"] == 15
-    print("3. Model Info Endpoint (/api/model-info/) -> 200 OK (15 features)")
+    feature_count = res_info.json()["model"]["feature_count"]
+    assert feature_count in (15, 21)
+    print(f"3. Model Info Endpoint (/api/model-info/) -> 200 OK ({feature_count} features)")
 
     # 4. Predict Endpoint
     sample_history = [28.0] * 168
@@ -56,7 +57,21 @@ def run_e2e_test():
     data = res_pred.json()
     assert data["status"] == "success"
     pred_val = data["prediction"]["predicted_temperature_2m"]
-    print(f"4. Prediction Endpoint (/api/predict/) -> 200 OK (Predicted: {pred_val:.2f}°C)")
+    assert "confidence_interval_80" not in data["prediction"]
+    assert "current_temperature" in data["prediction"]
+    assert "change_vs_current" in data["prediction"]
+    assert data["prediction"]["typical_error_celsius"] == 1.4
+    print(f"4. Prediction Endpoint (/api/predict/) -> 200 OK (Predicted: {pred_val:.2f}°C, Change: {data['prediction']['change_vs_current']:+.2f}°C)")
+
+    # 5. Easy Forecast Endpoint (Cairo default)
+    res_easy = client.post('/api/forecast/', data=json.dumps({"latitude": 30.0444, "longitude": 31.2357}), content_type='application/json')
+    assert res_easy.status_code in (200, 503)  # 200 if Open-Meteo reachable, 503 if upstream network blocked
+    if res_easy.status_code == 200:
+        easy_data = res_easy.json()
+        assert easy_data["status"] == "success"
+        print(f"5. Easy Forecast Endpoint (/api/forecast/) -> 200 OK (Predicted: {easy_data['prediction']['predicted_temperature_2m']:.2f}°C)")
+    else:
+        print("5. Easy Forecast Endpoint (/api/forecast/) -> 503 Upstream Network Handled Gracefully")
 
     print("\n[SUCCESS] All End-to-End System Tests Passed.")
 

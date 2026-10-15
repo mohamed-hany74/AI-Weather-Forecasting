@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-10-09T07:23:00Z",
+  "artifacts_verified": {
+    "xgboost_weather_model.json": {
+      "exists": true,
+      "size_bytes": 718876,
+      "sha256": "76f2557fe4998cae592a3c90b6fcdf867918245ad5f5df1fb19f2f0f815e9600"
+    },
+    "xgboost_weather_model_q10.json": {
+      "exists": true,
+      "size_bytes": 766053
+    },
+    "xgboost_weather_model_q90.json": {
+      "exists": true,
+      "size_bytes": 762094
+    },
+    "feature_config.json": {
+      "exists": true,
+      "features_count": 21
+    },
+    "model_metadata.json": {
+      "exists": true,
+      "target": null
+    }
+  },
+  "sha256_verification": {
+    "calculated_sha256": "76f2557fe4998cae592a3c90b6fcdf867918245ad5f5df1fb19f2f0f815e9600",
+    "metadata_sha256": "76f2557fe4998cae592a3c90b6fcdf867918245ad5f5df1fb19f2f0f815e9600",
+    "match": true
+  },
+  "model_properties": {
+    "main_model_num_features": 21,
+    "q10_model_num_features": 21,
+    "q90_model_num_features": 21,
+    "expected_feature_count": 21,
+    "parity_verified": true
+  }
+}

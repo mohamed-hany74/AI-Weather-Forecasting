@@ -120,9 +120,9 @@ def run_training_pipeline():
     print(f"  Train set: {len(X_train):,} rows ({X_train.index[0].date()} to {X_train.index[-1].date()})")
     print(f"  Test set : {len(X_test):,} rows ({X_test.index[0].date()} to {X_test.index[-1].date()})")
 
-    # 6. Walk-Forward Cross Validation on Purged Train Set
-    print("\n[4/7] Running 5-Fold Walk-Forward Cross Validation on Purged Train Set...")
-    tscv = TimeSeriesSplit(n_splits=5)
+    # 6. Walk-Forward Cross Validation on Purged Train Set (Strict Purge Gap)
+    print("\n[4/7] Running 5-Fold Walk-Forward Cross Validation on Purged Train Set (gap=24h)...")
+    tscv = TimeSeriesSplit(n_splits=5, gap=FORECAST_HORIZON)
     cv_maes = []
     for fold, (tr_idx, val_idx) in enumerate(tscv.split(X_train), 1):
         model_cv = XGBRegressor(**XGB_PARAMS)

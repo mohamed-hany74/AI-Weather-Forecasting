@@ -32,7 +32,7 @@ class IntegrationRegressionTests(TestCase):
         )
 
         vec = build_production_features(history, dt, exo)
-        pred, low, high = predict_temperature(vec, lag_24=history[-24])
+        pred = predict_temperature(vec, lag_24=history[-24])
 
         # Sanity check: In Cairo summer daytime, prediction must be realistic (~25°C to 38°C)
         self.assertGreater(pred, 22.0)

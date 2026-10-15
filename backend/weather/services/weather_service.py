@@ -242,3 +242,131 @@ def fetch_realtime_exogenous(
             raise ExternalWeatherServiceError(f"Invalid data types in Open-Meteo current: {e}")
 
     raise ExternalWeatherServiceError(f"Open-Meteo did not contain matching weather features for {target_utc_prefix}:00 UTC.")
+
+
+def fetch_168h_history_and_exogenous(
+    latitude: float,
+    longitude: float,
+    reference_time: datetime,
+    calibrate: bool = True
+) -> Dict[str, Any]:
+    """
+    Fetches the preceding 168 hours of observed temperature history [t-168h, ..., t-1h],
+    the current temperature at t, and the 8 aligned exogenous features at t.
+    All data is validated for completeness (no NaNs, no Infs, exact physical boundaries).
+    """
+    now_utc = datetime.now(timezone.utc)
+    if reference_time.tzinfo is None:
+        reference_time = reference_time.replace(tzinfo=timezone.utc)
+
+    # Clean floor to hour
+    ref_hour = reference_time.replace(minute=0, second=0, microsecond=0)
+    is_historical = (now_utc - ref_hour) > timedelta(days=5)
+
+    all_vars = ["temperature_2m"] + HOURLY_VARS
+
+    if is_historical:
+        # Range needed: 7 days prior up to reference date
+        start_dt = (ref_hour - timedelta(days=8)).date()
+        end_dt = ref_hour.date()
+        params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "start_date": start_dt.strftime("%Y-%m-%d"),
+            "end_date": end_dt.strftime("%Y-%m-%d"),
+            "hourly": ",".join(all_vars),
+            "timezone": "UTC"
+        }
+        api_url = OPEN_METEO_ARCHIVE_URL
+    else:
+        params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "hourly": ",".join(all_vars),
+            "past_days": 8,
+            "forecast_days": 1,
+            "timezone": "UTC"
+        }
+        api_url = OPEN_METEO_FORECAST_URL
+
+    try:
+        response = _session.get(api_url, params=params, timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
+        data = response.json()
+    except requests.exceptions.Timeout:
+        logger.error(f"Open-Meteo timeout for lat={latitude}, lon={longitude}")
+        raise ExternalWeatherServiceError("Open-Meteo request timed out. Please try again.")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Open-Meteo request error: {e}")
+        raise ExternalWeatherServiceError(f"Failed to fetch weather data: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error when querying Open-Meteo: {e}")
+        raise ExternalWeatherServiceError(f"Unexpected weather API error: {str(e)}")
+
+    if "hourly" not in data or "time" not in data["hourly"]:
+        raise ExternalWeatherServiceError("Open-Meteo response missing hourly data.")
+
+    h_data = data["hourly"]
+    times = h_data.get("time", [])
+    temps = h_data.get("temperature_2m", [])
+
+    target_utc_str = ref_hour.strftime("%Y-%m-%dT%H:00")
+    if target_utc_str not in times:
+        raise ExternalWeatherServiceError(
+            f"Reference time {target_utc_str} UTC not found in Open-Meteo response."
+        )
+
+    t_idx = times.index(target_utc_str)
+
+    # We need 168 preceding hours strictly before t: indices [t_idx - 168 : t_idx]
+    if t_idx < 168:
+        raise ExternalWeatherServiceError(
+            f"Insufficient history: only {t_idx} hours available before reference time {target_utc_str}. 168 hours required."
+        )
+
+    history_168 = [float(x) for x in temps[t_idx - 168 : t_idx]]
+    current_temp = float(temps[t_idx])
+
+    # Validate physical numbers
+    import math
+    for idx, val in enumerate(history_168 + [current_temp]):
+        if not math.isfinite(val):
+            raise ExternalWeatherServiceError(f"Non-finite temperature observation encountered at index {idx}: {val}")
+        if not (-60.0 <= val <= 65.0):
+            raise ExternalWeatherServiceError(f"Unphysical temperature reading {val}°C received from Open-Meteo.")
+
+    # Exogenous variables at index t_idx
+    try:
+        app_t = float(h_data["apparent_temperature"][t_idx])
+        press = float(h_data["pressure_msl"][t_idx])
+        hum = float(h_data["relative_humidity_2m"][t_idx])
+        dew = float(h_data.get("dew_point_2m", [15.0])[t_idx])
+        wind = float(h_data.get("wind_speed_10m", [10.0])[t_idx])
+        cloud = float(h_data.get("cloud_cover", [20.0])[t_idx])
+
+        pressures = h_data["pressure_msl"]
+        p_ch3 = press - float(pressures[t_idx - 3]) if t_idx >= 3 and pressures[t_idx - 3] is not None else 0.0
+        p_ch6 = press - float(pressures[t_idx - 6]) if t_idx >= 6 and pressures[t_idx - 6] is not None else 0.0
+    except (KeyError, IndexError, TypeError, ValueError) as e:
+        raise ExternalWeatherServiceError(f"Failed to parse exogenous features from Open-Meteo hourly array: {e}")
+
+    if calibrate and not is_historical:
+        exogenous = calibrate_exogenous(app_t, press, hum, dew, wind, cloud, p_ch3, p_ch6)
+    else:
+        exogenous = ExogenousWeather(
+            apparent_temperature=app_t,
+            pressure_msl=press,
+            relative_humidity_2m=hum,
+            dew_point_2m=dew,
+            wind_speed_10m=wind,
+            cloud_cover=cloud,
+            pressure_change_3h=p_ch3,
+            pressure_change_6h=p_ch6
+        )
+
+    return {
+        "history_168": history_168,
+        "current_temperature": current_temp,
+        "exogenous": exogenous,
+        "reference_time": ref_hour
+    }

@@ -219,5 +219,8 @@ class PredictionResponse:
     forecast_horizon_hours: int
     forecast_time: str
     predicted_temperature_2m: float
-    confidence_interval_80: Dict[str, float]
+    current_temperature: float
+    change_vs_current: float
+    typical_error_celsius: float
+    error_reference_note: str
     unit: str = "°C"

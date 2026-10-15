@@ -65,3 +65,10 @@ EXOGENOUS_CALIBRATION_OFFSETS = {
     "wind_speed_10m": 0.0,
     "cloud_cover": 0.0
 }
+
+# Verified Error Benchmark (Sourced from measured test set MAE = 1.35°C on held-out 2018-2019 test split)
+TYPICAL_ERROR_CELSIUS = 1.4
+TYPICAL_ERROR_NOTE = (
+    "Historical average error (measured test MAE: 1.35°C on held-out 2018-2019 Egypt ERA5 data); "
+    "reference benchmark, not a probabilistic guarantee."
+)
